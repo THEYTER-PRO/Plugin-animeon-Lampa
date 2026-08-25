@@ -1,15 +1,18 @@
 (function () {
     'use strict';
 
-    var $ = Lampa.jQuery;
-    var PROXY_URL = 'https://corsproxy.io/?';
-    var TARGET_SITE = 'https://v1.animeon.co';
+    function getJQuery() {
+        return window.jQuery  (window.Lampa && window.Lampa.jQuery)  window.$;
+    }
 
     function startPlugin() {
-        if (!Lampa || !Lampa.Listener) return;
+        if (!window.Lampa || !Lampa.Listener) return;
 
         Lampa.Listener.follow('full', function (e) {
             if (e.type === 'complite') {
+                var $ = getJQuery();
+                if (!$) return;
+
                 var render = e.object.activity.render();
                 var card = e.object.method === 'movie' ? e.object.movie : e.object.card;
 
@@ -24,7 +27,7 @@
                     );
 
                     button.on('hover:enter', function () {
-                        var query = card.title  card.name  card.original_title;
+                        var query = card.title  card.name  card.original_title || '';
                         searchAnime(query);
                     });
 
@@ -35,7 +38,12 @@
     }
 
     function searchAnime(query) {
+        var $ = getJQuery();
+        if (!$) return;
         if (Lampa.Noty) Lampa.Noty.show('Поиск на AnimeOn: ' + query);
+
+        var PROXY_URL = 'https://corsproxy.io/?';
+        var TARGET_SITE = 'https://v1.animeon.co';
 
         var targetUrl = TARGET_SITE + '/search?q=' + encodeURIComponent(query);
         var searchUrl = PROXY_URL + encodeURIComponent(targetUrl);
@@ -97,7 +105,12 @@
     }
 
     function parsePlayerPage(pageUrl, title) {
+        var $ = getJQuery();
+        if (!$) return;
         if (Lampa.Noty) Lampa.Noty.show('Загрузка плеера...');
+
+        var PROXY_URL = 'https://corsproxy.io/?';
+        var TARGET_SITE = 'https://v1.animeon.co';
         var targetUrl = PROXY_URL + encodeURIComponent(pageUrl);
 
         $.ajax({
@@ -138,11 +151,13 @@
         });
     }
 
-    if (window.appready) {
-        startPlugin();
-    } else {
-        Lampa.Listener.follow('app', function (e) {
-            if (e.type === 'ready') startPlugin();
-        });
-    }
+    try {
+        if (window.appready) {
+            startPlugin();
+        } else if (window.Lampa && Lampa.Listener) {
+            Lampa.Listener.follow('app', function (e) {
+                if (e.type === 'ready') startPlugin();
+            });
+        }
+    } catch (e) {}
 })();
