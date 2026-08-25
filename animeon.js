@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    const PROXY_URL = 'https://corsproxy.io/?';
-    const TARGET_SITE = 'https://v1.animeon.co';
+    var PROXY_URL = 'https://corsproxy.io/?';
+    var TARGET_SITE = 'https://v1.animeon.co';
 
     function startPlugin() {
         Lampa.Listener.follow('full', function (e) {
@@ -43,21 +43,30 @@
             dataType: 'text',
             success: function (response) {
                 try {
-                    var html = $(response);
                     var results = [];
+                    // Безопасный поиск ссылок через регулярное выражение для телевизоров
+                    var regex = /<a[^>]+href=["']([^"']*\/anime\/[^"']*)["'][^>]*>(.*?)<\/a>/gi;
+                    var match;
 
-                    html.find('a[href*="/anime/"], .poster-card, .anime-list-item').each(function () {
-                        var element = $(this);
-                        var title = element.text().trim() || element.attr('title');
-                        var link = element.attr('href');
+                    while ((match = regex.exec(response)) !== null) {
+                        var link = match[1];
+                        // Очищаем текст от тегов внутри ссылки
+                        var title = match[2].replace(/<[^>]*>/g, '').trim();
 
-                        if (link && title) {
-                            if (!link.startsWith('http')) {
-                                link = TARGET_SITE + (link.startsWith('/') ? '' : '/') + link;
+                        if (link && title && results.length < 15) {
+                            if (link.indexOf('http') !== 0) {
+                                link = TARGET_SITE + (link.indexOf('/') === 0 ? '' : '/') + link;
                             }
-                            results.push({ title: title, url: link });
+                            // Убираем дубликаты
+                            var exists = false;
+                            for (var i = 0; i < results.length; i++) {
+                                if (results[i].url === link) exists = true;
+                            }
+                            if (!exists) {
+                                results.push({ title: title, url: link });
+                            }
                         }
-                    });
+                    }
 
                     if (results.length === 0) {
                         Lampa.Noty.show('Ничего не найдено');
@@ -76,11 +85,11 @@
                         });
                     }
                 } catch (err) {
-                    Lampa.Noty.show('Ошибка парсинга ответа');
+                    Lampa.Noty.show('Ошибка обработки данных');
                 }
             },
             error: function () {
-                Lampa.Noty.show('Ошибка запроса через прокси');
+                Lambda.Noty.show('Ошибка сети');
             }
         });
     }
@@ -94,18 +103,22 @@
             type: 'GET',
             dataType: 'text',
             success: function (response) {
-                var html = $(response);
+                var streamUrl = '';
                 
-                var iframeSrc = html.find('iframe').attr('src');
-                var videoSrc = html.find('video source').attr('src') || html.find('video').attr('src');
+                // Ищем iframe или video src через регулярку
+                var iframeMatch = response.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+                var videoMatch = response.match(/<video[^>]+src=["']([^"']+)["']/i);
+                var sourceMatch = response.match(/<source[^>]+src=["']([^"']+)["']/i);
 
-                var streamUrl = videoSrc || iframeSrc;
+                if (iframeMatch) streamUrl = iframeMatch[1];
+                else if (videoMatch) streamUrl = videoMatch[1];
+                else if (sourceMatch) streamUrl = sourceMatch[1];
 
                 if (streamUrl) {
-                    if (streamUrl.startsWith('//')) {
+                    if (streamUrl.indexOf('//') === 0) {
                         streamUrl = 'https:' + streamUrl;
-                    } else if (!streamUrl.startsWith('http')) {
-                        streamUrl = TARGET_SITE + (streamUrl.startsWith('/') ? '' : '/') + streamUrl;
+                    } else if (streamUrl.indexOf('http') !== 0) {
+                        streamUrl = TARGET_SITE + (streamUrl.indexOf('/') === 0 ? '' : '/') + streamUrl;
                     }
 
                     Lampa.Player.play({
@@ -113,11 +126,11 @@
                         url: streamUrl
                     });
                 } else {
-                    Lampa.Noty.show('Прямой видеопоток не найден');
+                    Lampa.Noty.show('Видеопоток не найден');
                 }
             },
             error: function () {
-                Lampa.Noty.show('Ошибка загрузки страницы видео');
+                Lampa.Noty.show('Ошибка загрузки страницы');
             }
         });
     }
