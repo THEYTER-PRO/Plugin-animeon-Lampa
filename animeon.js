@@ -1,7 +1,6 @@
 (function () {
     'use strict';
 
-    // Использование публичного CORS-прокси corsproxy.io
     const PROXY_URL = 'https://corsproxy.io/?';
     const TARGET_SITE = 'https://v1.animeon.co';
 
@@ -47,7 +46,6 @@
                     var html = $(response);
                     var results = [];
 
-                    // Парсинг карточек выдачи AnimeOn
                     html.find('a[href*="/anime/"], .poster-card, .anime-list-item').each(function () {
                         var element = $(this);
                         var title = element.text().trim() || element.attr('title');
